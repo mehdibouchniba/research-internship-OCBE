@@ -1,0 +1,84 @@
+rm(list=objects())  # refresh workspace
+# useful libraries
+library(readxl)
+library(tidyverse)
+library(alr3)
+library(reshape)
+library(mgcv)
+options("na.action")
+
+setwd("//platon/med-imb-u1/mehdibo/pc/Desktop/PRe") # setting the folder where the files are
+
+#read datasets
+datatext  <- read.delim("W0cnv.txt", header = TRUE, sep = "\t", dec = ".")
+
+datatext<- na.omit(datatext)
+
+##################
+#subsetting to the week 0 gene expression
+datatextsubset <- subset(datatext, select = c(grep("NASC", colnames(datatext)))) # NASC in column names means week 0
+
+colnames(datatextsubset) <- unlist(str_extract_all(colnames(datatextsubset),"[[:digit:]]{4}")) # patient id as column names
+
+variations_tmp <- as.data.frame(do.call(rbind, datatext[1,]))  # removing two columns with same id
+rownames(variations_tmp) <- substring(rownames(variations_tmp),2)
+colnames(datatext) <- rownames(variations_tmp)
+
+##################
+# PREDICTORS
+#variations_tmp <- as.data.frame(do.call(rbind, datatextsubset[1,]))
+
+#colnames(datatextsubset) <- rownames(variations_tmp)
+rownames(datatextsubset) <- datatext$GeneSymbol.ArrayID.GlmCenteredSignal  # rename the dataset columns with names of genes/pathways
+predictors <- as.matrix(datatextsubset)  # matrix of predictors (dataset of gene expressions/CNV/PDS)
+predictors <- na.omit(predictors)
+
+##################
+# COMPUTE CORRELATIONS
+
+# CHANGE GENE
+x <- as.matrix(datatextsubset[rownames(datatextsubset) %in% "SNP_A-8677720",]) # taking rows found by LASSO of the dataset to compare it with others
+correlations <- cor(t(x),t(predictors)) # compute correlation between x and other gene expressions/CNV/PDS
+high_correlation <- as.data.frame(cor(t(x),t(x)))
+
+# COMPUTE
+rho_min <- 0.9 # threshold of correlation
+high_correlation <- correlations[abs(correlations)>rho_min] # matrix of gene expressions/CNV/PDS with only highly correlated genes/pathways
+list_of_highly_correlated <- as.data.frame(abs(correlations)>rho_min) # dataframe of boolean : TRUE if the gene/pathway is highly correlated
+
+list_of_highly_correlated <- list_of_highly_correlated[list_of_highly_correlated %in% TRUE] # subsetting the list with only TRUEs
+
+list_of_merge <- merge(t(list_of_highly_correlated),t(correlations), by="row.names") # list of genes/pathways and their correlation with x
+
+list_of_highly_correlated <- cbind(list_of_merge[3],list_of_merge[2]) # list of genes/pathways and their correlation with x
+colnames(list_of_highly_correlated) <- c("correlation","bool") # rename columns as correlation and bool
+rownames(list_of_highly_correlated) <- list_of_merge[1]$Row.names
+list_of_highly_correlated <- list_of_highly_correlated[order(-abs(list_of_highly_correlated$correlation)),] # order the genes/pathways by correlation value
+
+# ADD ELEMENTS IN THE LIST OF CNV AFTER THE FIRST ELEMENT HAS BEEN ADDED
+list_of_list_of_correlated_CNV[[length(list_of_list_of_correlated_CNV)+1]] <- list_of_highly_correlated[-2] # list of correlated pathways/genes with the next row (x)
+listname <- paste(rownames(list_of_highly_correlated)[1],"rho_min =",as.character(rho_min), sep=" ") # change the list name to display threshold and gene/pathway we are comparing
+colnames(list_of_list_of_correlated_CNV[[length(list_of_list_of_correlated_CNV)]]) <- listname
+
+# FIRST ELEMENT OF THE LIST OF CNV
+list_of_list_of_correlated_CNV <- list(list_of_highly_correlated[-2]) # list of correlated pathways/genes with the first row (x)
+listname <- paste(rownames(list_of_highly_correlated)[1],"rho_min =",as.character(rho_min), sep=" ") # change the list name to display threshold and gene/pathway we are comparing
+colnames(list_of_list_of_correlated_CNV[[length(list_of_list_of_correlated_CNV)]]) <- listname
+
+
+
+# ADD ELEMENTS IN THE LIST
+list_of_list_of_correlated[[length(list_of_list_of_correlated)+1]] <- list_of_highly_correlated[-2]
+listname <- paste(rownames(list_of_highly_correlated)[1],"rho_min =",as.character(rho_min), sep=" ")
+colnames(list_of_list_of_correlated[[length(list_of_list_of_correlated)]]) <- listname
+
+# FIRST ELEMENT OF THE LIST
+list_of_list_of_correlated <- list(list_of_highly_correlated[-2])
+listname <- paste(rownames(list_of_highly_correlated)[1],"rho_min =",as.character(rho_min), sep=" ")
+colnames(list_of_list_of_correlated[[length(list_of_list_of_correlated)]]) <- listname
+
+saveRDS(list_of_list_of_correlated, file="list_of_list_of_correlated.RData") # save the list of every gene of the LASSO and its correlations
+readRDS("list_of_list_of_correlated_CNV.RData") # read the list of every gene of the LASSO and its correlations
+
+
+
