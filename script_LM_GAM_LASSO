@@ -1,0 +1,202 @@
+rm(list=objects())  # refresh workspace
+# useful libraries
+library(readxl)
+library(tidyverse)
+library(alr3)
+library(reshape)
+library(mgcv)
+options("na.action")
+
+# set directory
+setwd("//platon/med-imb-u1/mehdibo/pc/Desktop/PRe") # setting the folder where the files are
+
+#read datasets
+dataexcel <- read_excel("NeoAva_Clinical_Data.xlsx")
+datatext  <- read.delim("RNA Expression.txt", header = TRUE, sep = "\t", dec = ".") #Gene expressions data set
+
+
+datatext<- na.omit(datatext)
+dataexcel <- dataexcel[-c(133, 134, 135, 136, 137, 138), ] # subsetting the data of RDC removing the rows where there is no RDC value (N/A rows)
+row.names(dataexcel) <- c(dataexcel$...1)
+##################
+
+##################
+#subsetting to the week 0 gene expression
+datatextsubset <- subset(datatext, select = c(grep("NASC", colnames(datatext)))) # NASC in column names means week 0
+colnames(datatextsubset) <- unlist(str_extract_all(colnames(datatextsubset),"[[:digit:]]{4}")) # patient id as column names
+
+dataexcelsubset <- dataexcel[ which(dataexcel$Bev=='No'), ] # subsetting to patient who received a treatment without Bev
+##################
+
+
+##################
+#gene expressions as columns
+first_gene <- as.data.frame(do.call(rbind, datatextsubset[3412,][-1])) # data frame with the gene expressions of the first gene from the report (as a column)
+colnames(first_gene) <- c("V1") # rename the column as V1
+rownames(first_gene) <- unlist(str_extract_all(rownames(first_gene),"[[:digit:]]{4}")) # setting row names as the patient ID
+##################
+
+
+#dataset of only RDC
+
+RDC2 <- dataexcelsubset$RDC  #taking RDC out of the dataset
+dataRDC <- as.data.frame(RDC2) # dataframe of RDC values
+dataRDC <- na.omit(dataRDC)
+
+
+row.names(dataRDC) <- c(dataexcelsubset$...1)
+rownames(dataRDC) <- unlist(str_extract_all(rownames(dataRDC),"[[:digit:]]{4}")) #  setting row names as the patient ID
+
+#maxx <- max(dataRDC)
+#dataRDC <- dataRDC*1e+05 # normalize the values
+##################
+
+
+##################
+#extracting every gene expressions column
+second_gene <- as.data.frame(do.call(rbind, datatextsubset[5391,][-1])) # same as for the first gene : data frame with the gene expressions of the first gene from the report (as a column), and so on
+rownames(second_gene) <- unlist(str_extract_all(rownames(second_gene),"[[:digit:]]{4}"))
+
+third_gene <- as.data.frame(do.call(rbind, datatextsubset[3166,][-1]))
+rownames(third_gene) <- unlist(str_extract_all(rownames(third_gene),"[[:digit:]]{4}"))
+
+fourth_gene <- as.data.frame(do.call(rbind, datatextsubset[13591,][-1]))
+rownames(fourth_gene) <- unlist(str_extract_all(rownames(fourth_gene),"[[:digit:]]{4}"))
+
+fifth_gene <- as.data.frame(do.call(rbind, datatextsubset[12916,][-1]))
+rownames(fifth_gene) <- unlist(str_extract_all(rownames(fifth_gene),"[[:digit:]]{4}"))
+
+sixth_gene <- as.data.frame(do.call(rbind, datatextsubset[3399,][-1]))
+rownames(sixth_gene) <- unlist(str_extract_all(rownames(sixth_gene),"[[:digit:]]{4}"))
+
+seventh_gene <- as.data.frame(do.call(rbind, datatextsubset[1671,][-1]))
+rownames(seventh_gene) <- unlist(str_extract_all(rownames(seventh_gene),"[[:digit:]]{4}"))
+
+eigth_gene <- as.data.frame(do.call(rbind, datatextsubset[19075,][-1]))
+rownames(eigth_gene) <- unlist(str_extract_all(rownames(eigth_gene),"[[:digit:]]{4}"))
+
+ninth_gene <- as.data.frame(do.call(rbind, datatextsubset[20953,][-1]))
+rownames(ninth_gene) <- unlist(str_extract_all(rownames(ninth_gene),"[[:digit:]]{4}"))
+
+tenth_gene <- as.data.frame(do.call(rbind, datatextsubset[3162,][-1]))
+rownames(tenth_gene) <- unlist(str_extract_all(rownames(tenth_gene),"[[:digit:]]{4}"))
+
+eleventh_gene <- as.data.frame(do.call(rbind, datatextsubset[21669,][-1]))
+rownames(eleventh_gene) <- unlist(str_extract_all(rownames(eleventh_gene),"[[:digit:]]{4}"))
+
+twelvth_gene <- as.data.frame(do.call(rbind, datatextsubset[8395,][-1]))
+rownames(twelvth_gene) <- unlist(str_extract_all(rownames(twelvth_gene),"[[:digit:]]{4}"))
+
+thirtienth_gene <- as.data.frame(do.call(rbind, datatextsubset[6954,][-1]))
+rownames(thirtienth_gene) <- unlist(str_extract_all(rownames(thirtienth_gene),"[[:digit:]]{4}"))
+
+fourteenth_gene <- as.data.frame(do.call(rbind, datatextsubset[6369,][-1]))
+rownames(fourteenth_gene) <- unlist(str_extract_all(rownames(fourteenth_gene),"[[:digit:]]{4}"))
+
+fifteenth_gene <- as.data.frame(do.call(rbind, datatextsubset[5696,][-1]))
+rownames(fifteenth_gene) <- unlist(str_extract_all(rownames(fifteenth_gene),"[[:digit:]]{4}"))
+##################
+
+
+##################
+# MERGE 1
+##################
+m1 <- merge(dataRDC, first_gene, by = 'row.names') # merge RDC and genes by patient ID to get all the data in the same order
+m2 <- merge(dataRDC, second_gene, by = 'row.names')
+m3 <- merge(dataRDC, third_gene, by = 'row.names')
+m4 <- merge(dataRDC, fourth_gene, by = 'row.names')
+m5 <- merge(dataRDC, fifth_gene, by = 'row.names')
+m6 <- merge(dataRDC, sixth_gene, by = 'row.names')
+m7 <- merge(dataRDC, seventh_gene, by = 'row.names')
+m8 <- merge(dataRDC, eigth_gene, by = 'row.names')
+m9 <- merge(dataRDC, ninth_gene, by = 'row.names')
+m10 <- merge(dataRDC, tenth_gene, by = 'row.names')
+m11 <- merge(dataRDC, eleventh_gene, by = 'row.names')
+m12 <- merge(dataRDC, twelvth_gene, by = 'row.names')
+m13 <- merge(dataRDC, thirtienth_gene, by = 'row.names')
+m14 <- merge(dataRDC, fourteenth_gene, by = 'row.names')
+m15 <- merge(dataRDC, fifteenth_gene, by = 'row.names')
+
+
+Merged <- as.data.frame(do.call(cbind, list(m1$RDC2, m1$V1, m2$V1, m3$V1, m4$V1, m5$V1, m6$V1, m7$V1, m8$V1, m9$V1, m10$V1, m11$V1, m12$V1, m13$V1, m14$V1, m15$V1))) # all of gene expressions of the 15 genes in one dataframe
+
+##################
+
+
+##################
+# CHANGE NAME OF DATA AS GENE NAMES
+CDKN2A <- Merged$V2
+EGFR <- Merged$V3
+CCNE1 <- Merged$V4
+NOTCH1 <- Merged$V5
+MYC <- Merged$V6
+CDK6 <- Merged$V7
+BUB1B <- Merged$V8
+TBX3 <- Merged$V9
+XBP1 <- Merged$V10
+CCND1 <- Merged$V11
+ZNF703 <- Merged$V12
+IGF1R <- Merged$V13
+GATA3 <- Merged$V14
+FGFR2 <- Merged$V15
+ESR1 <- Merged$V16
+##################
+
+# COMPUTING THE LINEAR MODEL
+mod_summary <- summary(lm(formula = Merged$V1 ~ CDKN2A + EGFR + CCNE1 + NOTCH1 + MYC + CDK6 + Merged$V8 + Merged$V9 + Merged$V10 + Merged$V11 + Merged$V12 + Merged$V13 + Merged$V14 + Merged$V15 + Merged$V16, data = Merged))
+mod_summary
+
+# COMPUTING THE GAM
+mod_gamtest <- gam(Merged$V1 ~ s(EGFR), data = Merged)
+summary(mod_gamtest)
+plot(mod_gamtest)
+
+
+##################
+# PROCESS ALL GENES FOR LASSO
+##################
+
+##################
+# MERGE TO GET CONVENIENT ROWS : THE DATAFRAME RESULTING OF THE MERGE SETS A COMMON ORDER OF THE PATIENTS ID TO MERGE RDC DATA AND GENE EXPRESSIONS IN A RIGHT WAY
+variations_temp <- as.data.frame(do.call(rbind, datatextsubset[1,]))
+list_of_merged <- list()
+list_of_merged[[1]] <- merge(variations_temp[1], dataRDC, by = 'row.names')
+names(list_of_merged[[1]])[3] <- c("RDC3")
+
+# getting convenient rows 
+rows <- c(list_of_merged[[1]]$Row.names) # list of the convenient rows taken from above
+
+##################
+# LIST OF VARIATIONS AFTER INVERSION
+variations_tmp <- as.data.frame(do.call(rbind, datatextsubset[1,]))
+
+colnames(datatextsubset) <- rownames(variations_tmp)
+predictors <- as.matrix(datatextsubset[,rownames(variations_tmp) %in% rows]) # matrix of gene expressions with the same order of patient ID as RDC values
+predictors <- t(predictors)
+
+predictors <- na.omit(predictors)
+##################
+
+##################
+library(glmnet)
+############################
+# LASSO REGRESSION
+
+y1<-data.matrix(genes[ ,1:21851]) #21851 is the length of the variable to explain, change for new dataset
+y2<-data.matrix(list_of_merged[[1]]$V1)  
+
+
+cv_model <- cv.glmnet(predictors, y2, alpha = 1)
+plot(cv_model)
+
+best_lambda <- cv_model$lambda.min
+ridge_coef=predict(cv_model,type="coefficients",s=best_lambda)[1:21851,] #21851 is the length of the variable to explain, change for new dataset
+nonzeroCoef<-ridge_coef[which(ridge_coef!=0)]  
+nonzeroCoef<- as.data.frame(nonzeroCoef)
+nonzeroCoef[,2]<- rownames(nonzeroCoef)
+nonzeroCoef.m<- melt(nonzeroCoef)
+
+ggplot(nonzeroCoef.m,aes(x=V2,y=value,color=V2))+geom_point(size=4)+ theme(text = element_text(size =15))+ theme(axis.text.x=element_text(angle = -90, hjust = 0))
+
+
+plot(cv_model)
