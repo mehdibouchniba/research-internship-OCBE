@@ -1,0 +1,93 @@
+rm(list=objects())
+install.packages("Rtools")
+install.packages("readxl")
+install.packages("visreg")
+library(readxl)
+library(tidyverse)
+library(alr3)
+library(reshape)
+library(mgcv)
+options("na.action")
+
+setwd("//platon/med-imb-u1/mehdibo/pc/Desktop/PRe")
+
+#read datasets
+dataexcel <- read_excel("NeoAva_Clinical_Data.xlsx")
+datatext  <- read.delim("W0snp.txt", header = TRUE, sep = "\t", dec = ".")
+
+datatext<- na.omit(datatext)
+dataexcel <- dataexcel[-c(133, 134, 135, 136, 137, 138), ]
+row.names(dataexcel) <- c(dataexcel$...1)
+##################
+
+##################
+#subsetting to the week 0 gene expression
+datatextsubset <- subset(datatext, select = c(grep("NASC", colnames(datatext)))) #deja fait
+
+colnames(datatext) <- unlist(str_extract_all(colnames(datatext),"[[:digit:]]{4}")) #patient id
+##################
+
+#dataset of only RDC
+
+RDC2 <- dataexcel$RDC
+dataRDC <- as.data.frame(RDC2)
+dataRDC <- na.omit(dataRDC)
+
+
+row.names(dataRDC) <- c(dataexcel$...1)
+rownames(dataRDC) <- unlist(str_extract_all(rownames(dataRDC),"[[:digit:]]{4}"))
+
+#maxx <- max(dataRDC)
+#dataRDC <- dataRDC*1e+05
+##################
+
+
+##################
+# PROCESS ALL CNV FOR LASSO
+##################
+
+##################
+# MERGE TO GET CONVENIENT ROWS
+variations_temp <- as.data.frame(do.call(rbind, datatext[1,]))
+rownames(variations_temp) <- substring(rownames(variations_temp),2)
+list_of_merged <- list()
+list_of_merged[[1]] <- merge(variations_temp[1], dataRDC, by = 'row.names')
+names(list_of_merged[[1]])[3] <- c("RDC3")
+
+# getting convenient rows 
+rows <- c(list_of_merged[[1]]$Row.names)
+
+##################
+# LIST OF VARIATIONS AFTER INVERSION
+variations_tmp <- as.data.frame(do.call(rbind, datatext[1,]))
+
+variations_tmp <- variations_tmp %>% arrange(row.names(variations_tmp))
+variations_tmp <- as.matrix(variations_tmp[rownames(variations_tmp) %in% rows, ])
+
+colnames(datatext) <- rownames(variations_tmp)
+datatext <- as.data.frame(t(datatext))
+datatextmatrix <- as.matrix(datatext[rownames(variations_tmp) %in% rows, ])
+datatextmatrix <- as.data.frame(t(datatextmatrix))
+
+variations <- na.omit(variations)
+##################
+##################
+
+library(glmnet)
+############################
+# LASSO REGRESSION
+
+y2<-data.matrix(list_of_merged[[1]]$RDC3)  
+
+
+cv_model <- cv.glmnet(datatextmatrix, y2, alpha = 1)
+plot(cv_model)
+
+best_lambda <- cv_model$lambda.min
+lasso_coef=predict(cv_model,type="coefficients",s=best_lambda)[1:1838128,]
+nonzeroCoef<- lasso_coef[which(lasso_coef!=0)]  
+nonzeroCoef<- as.data.frame(nonzeroCoef)
+nonzeroCoef[,2]<- rownames(nonzeroCoef)
+nonzeroCoef.m<- melt(nonzeroCoef)
+
+ggplot(nonzeroCoef.m,aes(x=V2,y=value,color=V2))+geom_point(size=4)+ theme(text = element_text(size =15))+ theme(axis.text.x=element_text(angle = -90, hjust = 0))
